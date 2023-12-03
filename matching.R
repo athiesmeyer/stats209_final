@@ -2,7 +2,8 @@ library('tidyverse')
 library('DOS2')
 library('optmatch')
 library('RItools')
-source('../../scripts/utility.R')
+library('MASS')
+source('./utility.R')
 
 c1 <- rgb(173,216,230,max = 255, alpha = 80, names = "lt.blue")
 c2 <- rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
@@ -12,10 +13,21 @@ orig.df <- read.csv("data/proc_data.csv")
 orig.df$CONTROL <- as.factor(orig.df$CONTROL)
 orig.df$REGION <- as.factor(orig.df$REGION)
 
-lr.model <- glm(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE,
-                family="binomial",
-                data=orig.df)
-prop.scores <- lr.model$fitted.values
+use_lreg = TRUE
+
+if (use_lreg) {
+  lr.model <- glm(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE,
+                  family="binomial",
+                  data=orig.df)
+  prop.scores <- lr.model$fitted.values
+} else {
+  lda.model <- lda(
+    Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE,
+    data=orig.df
+  )
+  prop.scores <- predict(lda.model, orig.df)$posterior[, 2]
+}
+
 orig.df$PROP <- prop.scores
 
 plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
