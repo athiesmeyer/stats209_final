@@ -196,14 +196,15 @@ ignore.cols.1 <- c("UNITID.1", "PROP.1", "INSTNM.1", "ADMCON7_2.1",
 
 tau.f = coef(lm(RET_FT4_PCT_CHANGE ~ ., data=orig.df[,!(names(orig.df) %in% irr.cols)]))["Z"]
 
+tempdf = orig.df
 
 taus <- c()
 for (i in 1:1000) {
-  random.swap <- sample(c(TRUE, FALSE), dim(orig.df)[1], replace=TRUE)
+  random.swap <- sample(c(TRUE, FALSE), dim(tempdf)[1], replace=TRUE)
   random.swap = as.numeric(random.swap)
-  orig.df$Z = random.swap
+  tempdf$Z = random.swap
   
-  tau <- coef(lm(RET_FT4_PCT_CHANGE ~ ., data=orig.df[,!(names(orig.df) %in% irr.cols)]))["Z"]
+  tau <- coef(lm(RET_FT4_PCT_CHANGE ~ ., data=tempdf[,!(names(tempdf) %in% irr.cols)]))["Z"]
   taus <- append(taus, tau)
 }
 
