@@ -1,0 +1,212 @@
+---
+title: "Stats 209 Final Project Matching"
+author: "Nina Cruz"
+date: "2023-12-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# original matching procedure
+library('tidyverse')
+library('DOS2')
+library('optmatch')
+library('RItools')
+source('../utility.R')
+
+c1 <- rgb(173,216,230,max = 255, alpha = 80, names = "lt.blue")
+c2 <- rgb(255,192,203, max = 255, alpha = 80, names = "lt.pink")
+
+orig.df <- read.csv("data/proc_data__all_2017.csv")
+
+orig.df$CONTROL <- as.factor(orig.df$CONTROL)
+orig.df$REGION <- as.factor(orig.df$REGION)
+
+lr.model <- glm(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE,
+                family="binomial",
+                data=orig.df)
+prop.scores <- lr.model$fitted.values
+orig.df$PROP <- prop.scores
+
+plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
+              data=orig.df), ggplot=TRUE)
+
+h.0 <- hist(prop.scores[orig.df$Z == 0], plot=FALSE)
+h.1 <- hist(prop.scores[orig.df$Z == 1], plot=FALSE)
+plot(h.0, col=c1, main='Propensity Score of Control and Treatment',
+     xlab='Propensity Score')
+plot(h.1, col=c2, add=TRUE)
+legend(0.15, 600, legend=c('Control', 'Treatment'),
+       fill=c(c1, c2))
+
+mat.1 <- match_on(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - PROP,
+                   data=orig.df)
+
+mat.2 <- addalmostexact(mat.1, z=orig.df$Z, f=orig.df$CONTROL)
+mat.3 <- addalmostexact(mat.2, z=orig.df$Z, f=orig.df$REGION)
+
+mat.4 <- addcaliper(mat.3, z=orig.df$Z, p=orig.df$RET_FT4)
+mat.5 <- addcaliper(mat.4, z=orig.df$Z, p=orig.df$PROP)
+
+ms <- pairmatch(mat.5, data=orig.df)
+
+plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
+              strata=list(unstrat=NULL, ms=~ms),
+              data=orig.df), ggplot=TRUE)
+
+mdf <- summarize.match(orig.df, ms)
+```
+
+## Adding / Removing Exact Match and Calipers
+
+```{r}
+# add caliper for age_entry
+mat.1 <- match_on(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - PROP,
+                   data=orig.df)
+
+mat.2 <- addalmostexact(mat.1, z=orig.df$Z, f=orig.df$CONTROL)
+mat.3 <- addalmostexact(mat.2, z=orig.df$Z, f=orig.df$REGION)
+
+mat.4 <- addcaliper(mat.3, z=orig.df$Z, p=orig.df$RET_FT4)
+mat.5 <- addcaliper(mat.4, z=orig.df$Z, p=orig.df$PROP)
+mat.6 <- addcaliper(mat.5, z=orig.df$Z, p=orig.df$AGE_ENTRY)
+
+ms <- pairmatch(mat.6, data=orig.df)
+
+plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
+              strata=list(unstrat=NULL, ms=~ms),
+              data=orig.df), ggplot=TRUE)
+
+mdf <- summarize.match(orig.df, ms)
+```
+
+```{r}
+# remove almost exact for control
+mat.1 <- match_on(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - PROP,
+                   data=orig.df)
+
+# mat.2 <- addalmostexact(mat.1, z=orig.df$Z, f=orig.df$CONTROL)
+mat.3 <- addalmostexact(mat.1, z=orig.df$Z, f=orig.df$REGION)
+
+mat.4 <- addcaliper(mat.3, z=orig.df$Z, p=orig.df$RET_FT4)
+mat.5 <- addcaliper(mat.4, z=orig.df$Z, p=orig.df$PROP)
+
+ms <- pairmatch(mat.5, data=orig.df)
+
+plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
+              strata=list(unstrat=NULL, ms=~ms),
+              data=orig.df), ggplot=TRUE)
+
+mdf <- summarize.match(orig.df, ms)
+```
+
+```{r}
+# add caliper for dependent
+mat.1 <- match_on(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - PROP,
+                   data=orig.df)
+
+mat.2 <- addalmostexact(mat.1, z=orig.df$Z, f=orig.df$CONTROL)
+mat.3 <- addalmostexact(mat.2, z=orig.df$Z, f=orig.df$REGION)
+
+mat.4 <- addcaliper(mat.3, z=orig.df$Z, p=orig.df$RET_FT4)
+mat.5 <- addcaliper(mat.4, z=orig.df$Z, p=orig.df$PROP)
+mat.6 <- addcaliper(mat.5, z=orig.df$Z, p=orig.df$DEPENDENT)
+
+ms <- pairmatch(mat.6, data=orig.df)
+
+plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
+              strata=list(unstrat=NULL, ms=~ms),
+              data=orig.df), ggplot=TRUE)
+
+mdf <- summarize.match(orig.df, ms)
+```
+
+## One-To-Many Matching
+```{r}
+# 3 controls
+mat.1 <- match_on(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - PROP,
+                   data=orig.df)
+
+mat.2 <- addalmostexact(mat.1, z=orig.df$Z, f=orig.df$CONTROL)
+mat.3 <- addalmostexact(mat.2, z=orig.df$Z, f=orig.df$REGION)
+
+mat.4 <- addcaliper(mat.3, z=orig.df$Z, p=orig.df$RET_FT4)
+mat.5 <- addcaliper(mat.4, z=orig.df$Z, p=orig.df$PROP)
+
+ms <- pairmatch(mat.5, controls=3, data=orig.df)
+
+plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
+              strata=list(unstrat=NULL, ms=~ms),
+              data=orig.df), ggplot=TRUE)
+
+mdf <- summarize.match(orig.df, ms)
+```
+
+```{r}
+# 5 controls
+mat.1 <- match_on(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - PROP,
+                   data=orig.df)
+
+mat.2 <- addalmostexact(mat.1, z=orig.df$Z, f=orig.df$CONTROL)
+mat.3 <- addalmostexact(mat.2, z=orig.df$Z, f=orig.df$REGION)
+
+mat.4 <- addcaliper(mat.3, z=orig.df$Z, p=orig.df$RET_FT4)
+mat.5 <- addcaliper(mat.4, z=orig.df$Z, p=orig.df$PROP)
+
+ms <- pairmatch(mat.5, controls=5, data=orig.df)
+
+plot(xBalance(Z ~ . - UNITID - INSTNM - ADMCON7_2 - RET_FT4_PCT_CHANGE - 1,
+              strata=list(unstrat=NULL, ms=~ms),
+              data=orig.df), ggplot=TRUE)
+
+mdf <- summarize.match(orig.df, ms)
+```
+
+
+## Fisherian Estimator
+```{r}
+tau.f <- mean(mdf$RET_FT4_PCT_CHANGE.1 - mdf$RET_FT4_PCT_CHANGE.0)
+
+taus <- c()
+for (i in 1:1000) {
+  random.swap <- sample(c(TRUE, FALSE), dim(mdf)[1], replace=TRUE)
+  treated.y <- mdf$RET_FT4_PCT_CHANGE.1
+  control.y <- mdf$RET_FT4_PCT_CHANGE.0
+  treated.y[random.swap] <- mdf$RET_FT4_PCT_CHANGE.0[random.swap]
+  control.y[random.swap] <- mdf$RET_FT4_PCT_CHANGE.1[random.swap]
+  
+  tau <- mean(treated.y - control.y)
+  taus <- append(taus, tau)
+}
+
+mean(taus <= tau.f)
+```
+
+#### Fisherian estimator using linear regression coefficient
+```{r}
+irr.cols <- c("UNITID", "PROP", "INSTNM", "ADMCON7_2")
+
+ignore.cols.0 <- c("UNITID.0", "PROP.0", "INSTNM.0", "ADMCON7_2.0",
+                   "RET_FT4_PCT_CHANGE.0")
+ignore.cols.1 <- c("UNITID.1", "PROP.1", "INSTNM.1", "ADMCON7_2.1",
+                   "RET_FT4_PCT_CHANGE.1")
+
+tau.f = coef(lm(RET_FT4_PCT_CHANGE ~ ., data=orig.df[,!(names(orig.df) %in% irr.cols)]))["Z"]
+
+
+taus <- c()
+for (i in 1:1000) {
+  random.swap <- sample(c(TRUE, FALSE), dim(orig.df)[1], replace=TRUE)
+  random.swap = as.numeric(random.swap)
+  orig.df$Z = random.swap
+  
+  tau <- coef(lm(RET_FT4_PCT_CHANGE ~ ., data=orig.df[,!(names(orig.df) %in% irr.cols)]))["Z"]
+  taus <- append(taus, tau)
+}
+
+mean(taus <= tau.f)
+```
+
