@@ -117,12 +117,29 @@ names(mdf.0) <- new.names
 mdf.1 <- mdf[, mask.1]
 names(mdf.1) <- new.names
 
-mu.1.preds.treated <- predict(mu.1, mdf.1)
-mu.1.preds.control <- predict(mu.1, mdf.0)
-mu.0.preds.treated <- predict(mu.0, mdf.1)
-mu.0.preds.control <- predict(mu.0, mdf.0)
+use.other.model <- TRUE
+if (use.other.model) {
+  source("./crossfit.R")
+  k <- 5
+  learner.str <- "regr.xgboost"
+  
+  mdf.1$RET_FT4_PCT_CHANGE <- mdf$RET_FT4_PCT_CHANGE.1
+  mdf.0$RET_FT4_PCT_CHANGE <- mdf$RET_FT4_PCT_CHANGE.0
+  
+  mu.0.preds.control <- kfold.fit.predict(mdf.0, "RET_FT4_PCT_CHANGE", k, learner.str)$response
+  mu.0.preds.treated <- fit.predict(mdf.0, mdf.1, "RET_FT4_PCT_CHANGE", learner.str)$response
+  mu.1.preds.treated <- kfold.fit.predict(mdf.1, "RET_FT4_PCT_CHANGE", k, learner.str)$response
+} else {
+  mu.1.preds.treated <- predict(mu.1, mdf.1)
+  mu.1.preds.control <- predict(mu.1, mdf.0)
+  mu.0.preds.treated <- predict(mu.0, mdf.1)
+  mu.0.preds.control <- predict(mu.0, mdf.0)
+}
+
 
 b <- mean(mu.0.preds.treated - mu.0.preds.control)
+
+
 tau <- tau.m - b
 
 # ks <- c()
@@ -140,4 +157,5 @@ tau + 1.96 * sqrt(var)
 tau - 1.96 * sqrt(var)
 
 pnorm(tau, mean=0, sd=sqrt(var))
+
 
